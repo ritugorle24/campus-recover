@@ -33,16 +33,14 @@ function setupChatSocket(io) {
 
     // Join a match-specific chat room
     socket.on('join_room', (matchId) => {
-      const room = `match_${matchId}`;
-      socket.join(room);
-      console.log(`📌 ${socket.user.name} joined room: ${room}`);
+      socket.join(matchId);
+      console.log(`📌 ${socket.user.name} joined room: ${matchId}`);
     });
 
     // Leave a chat room
     socket.on('leave_room', (matchId) => {
-      const room = `match_${matchId}`;
-      socket.leave(room);
-      console.log(`📤 ${socket.user.name} left room: ${room}`);
+      socket.leave(matchId);
+      console.log(`📤 ${socket.user.name} left room: ${matchId}`);
     });
 
     // Send a message
@@ -80,7 +78,7 @@ function setupChatSocket(io) {
         };
 
         // Emit to the match room
-        io.to(`match_${matchId}`).emit('receive_message', messageData);
+        io.to(matchId).emit('receive_message', messageData);
 
         // Also emit to receiver's personal room (for notification)
         io.to(`user_${receiverId}`).emit('new_message_notification', {
@@ -99,7 +97,7 @@ function setupChatSocket(io) {
     // Typing indicator
     socket.on('typing', (data) => {
       const { matchId } = data;
-      socket.to(`match_${matchId}`).emit('user_typing', {
+      socket.to(matchId).emit('user_typing', {
         userId: socket.userId,
         userName: socket.user.name,
         matchId,
@@ -109,7 +107,7 @@ function setupChatSocket(io) {
     // Stop typing
     socket.on('stop_typing', (data) => {
       const { matchId } = data;
-      socket.to(`match_${matchId}`).emit('user_stop_typing', {
+      socket.to(matchId).emit('user_stop_typing', {
         userId: socket.userId,
         matchId,
       });
@@ -130,7 +128,7 @@ function setupChatSocket(io) {
         );
 
         // Notify sender that messages were read
-        socket.to(`match_${matchId}`).emit('messages_read', {
+        socket.to(matchId).emit('messages_read', {
           matchId,
           readBy: socket.userId,
         });

@@ -7,7 +7,7 @@ const router = express.Router();
 // GET /api/notifications - Get user notifications
 router.get('/', auth, async (req, res) => {
   try {
-    const notifications = await Notification.find({ recipient: req.userId })
+    const notifications = await Notification.find({ userId: req.userId })
       .sort({ createdAt: -1 })
       .limit(50);
     res.json({ notifications });
@@ -20,8 +20,8 @@ router.get('/', auth, async (req, res) => {
 router.put('/read-all', auth, async (req, res) => {
   try {
     await Notification.updateMany(
-      { recipient: req.userId, isRead: false },
-      { $set: { isRead: true } }
+      { userId: req.userId, read: false },
+      { $set: { read: true } }
     );
     res.json({ message: 'All notifications marked as read' });
   } catch (error) {
@@ -33,8 +33,8 @@ router.put('/read-all', auth, async (req, res) => {
 router.put('/:id/read', auth, async (req, res) => {
   try {
     const notification = await Notification.findOneAndUpdate(
-      { _id: req.params.id, recipient: req.userId },
-      { $set: { isRead: true } },
+      { _id: req.params.id, userId: req.userId },
+      { $set: { read: true } },
       { new: true }
     );
     if (!notification) {

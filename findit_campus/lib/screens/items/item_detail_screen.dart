@@ -423,13 +423,20 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                                 }
 
                                 final match = matches.first;
-                                final matchId = match['_id'];
+                                final matchId = match['_id'] ?? match['matchId'];
+                                
+                                if (matchId == null || matchId.toString().isEmpty) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Could not initialize chat. Invalid match data.')),
+                                  );
+                                  return;
+                                }
                                 
                                 Navigator.push(
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) => ChatScreen(
-                                      matchId: matchId,
+                                      matchId: matchId.toString(),
                                       otherUserName: item.posterName,
                                       otherUserId: item.posterId,
                                     ),
@@ -618,6 +625,247 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                   ),
 
                   const SizedBox(height: 30),
+
+                  // ── RECEIVED CLAIMS (FOR FINDER) ──
+                  if (isOwner && item.isActive)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            'RECEIVED CLAIMS',
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: AppColors.textMuted,
+                              letterSpacing: 1.0,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          if (itemProvider.matches.where((m) => m['claimStatus'] == 'submitted').isEmpty)
+                            Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: AppColors.surface,
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: AppColors.surfaceLight),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.info_outline, color: AppColors.textMuted, size: 20),
+                                  const SizedBox(width: 10),
+                                  Text('No pending claims yet.', style: GoogleFonts.inter(color: AppColors.textMuted, fontSize: 13)),
+                                ],
+                              ),
+                            )
+                          else
+                            ...itemProvider.matches.where((m) => m['claimStatus'] == 'submitted').map((match) {
+                              return Container(
+                                margin: const EdgeInsets.only(bottom: 12),
+                                padding: const EdgeInsets.all(16),
+                                decoration: BoxDecoration(
+                                  color: AppColors.surface,
+                                  borderRadius: BorderRadius.circular(16),
+                                  border: Border.all(color: AppColors.surfaceLight),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.03),
+                                      blurRadius: 8,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        const Icon(Icons.account_circle, color: AppColors.primary, size: 20),
+                                        const SizedBox(width: 8),
+                                        Text(
+                                          'Claim from ${match['lostItem']?['postedBy']?['name'] ?? 'Owner'}',
+                                          style: GoogleFonts.inter(fontWeight: FontWeight.w700, color: AppColors.textPrimary),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 12),
+                                    Text(
+                                      'Owner\'s Description:',
+                                      style: GoogleFonts.inter(fontSize: 10, fontWeight: FontWeight.w800, color: AppColors.textMuted),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      match['claimDescription'] ?? 'No description provided.',
+                                      style: GoogleFonts.inter(fontSize: 13, color: AppColors.textSecondary),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: ElevatedButton(
+                                            onPressed: () => _handleClaim(context, match['_id'], 'approve', itemProvider),
+                                            style: ElevatedButton.styleFrom(
+                                              backgroundColor: AppColors.success,
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                              elevation: 0,
+                                            ),
+                                            child: const Text('Approve', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 12),
+                                        Expanded(
+                                          child: OutlinedButton(
+                                            onPressed: () => _handleClaim(context, match['_id'], 'reject', itemProvider),
+                                            style: OutlinedButton.styleFrom(
+                                              side: const BorderSide(color: AppColors.error),
+                                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                            ),
+                                            child: const Text('Reject', style: TextStyle(color: AppColors.error, fontSize: 13, fontWeight: FontWeight.bold)),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 12),
+                                    ElevatedButton.icon(
+                                      onPressed: () {
+                                        final otherUserId = match['lostItem']?['postedBy']?['_id'];
+                                        final otherUserName = match['lostItem']?['postedBy']?['name'] ?? 'Owner';
+                                        
+                                        if (otherUserId == null) {
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(content: Text('Cannot initialize chat.')),
+                                          );
+                                          return;
+                                        }
+
+                                        Navigator.push(
+                                          context,
+                                          MaterialPageRoute(
+                                            builder: (context) => ChatScreen(
+                                              matchId: match['_id'],
+                                              otherUserName: otherUserName,
+                                              otherUserId: otherUserId,
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                      icon: const Icon(Icons.chat_bubble_outline, size: 16, color: AppColors.primary),
+                                      label: Text('Chat with Owner', style: GoogleFonts.inter(color: AppColors.primary, fontWeight: FontWeight.w600)),
+                                      style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppColors.surfaceLight,
+                                        elevation: 0,
+                                        minimumSize: const Size(double.infinity, 44),
+                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              );
+                            }).toList(),
+                          const SizedBox(height: 20),
+                        ],
+                      ),
+                    ),
+
+                  const SizedBox(height: 10),
+                  // ── VERIFY HANDOVER ──
+                  Builder(
+                    builder: (context) {
+                      final matches = itemProvider.matches;
+                      final approvedMatch = matches.cast<Map<String, dynamic>?>().firstWhere(
+                            (m) => m?['claimStatus'] == 'approved',
+                            orElse: () => null,
+                          );
+
+                      if (approvedMatch == null) return const SizedBox.shrink();
+                      
+                      final claimId = approvedMatch['_id'];
+
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              'VERIFY HANDOVER',
+                              style: GoogleFonts.inter(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.textMuted,
+                                letterSpacing: 1.0,
+                              ),
+                            ),
+                            const SizedBox(height: 10),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      Navigator.pushNamed(context, '/generate-qr', arguments: claimId);
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.all(16),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.surface,
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(color: AppColors.primary.withOpacity(0.3)),
+                                      ),
+                                      child: Column(
+                                        children: [
+                                          const Icon(Icons.qr_code_2, color: AppColors.primary, size: 32),
+                                          const SizedBox(height: 8),
+                                          Text('Your QR', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+                                          Text('Show to finder', style: GoogleFonts.inter(fontSize: 10, color: AppColors.textMuted)),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: GestureDetector(
+                                    onTap: () {
+                                      Navigator.pushNamed(context, '/scan-qr');
+                                    },
+                                    child: Container(
+                                      padding: const EdgeInsets.all(16),
+                                      decoration: BoxDecoration(
+                                        color: AppColors.surface,
+                                        borderRadius: BorderRadius.circular(16),
+                                        border: Border.all(color: AppColors.surfaceLight),
+                                      ),
+                                      child: Column(
+                                        children: [
+                                          const Icon(Icons.qr_code_scanner, color: AppColors.textSecondary, size: 32),
+                                          const SizedBox(height: 8),
+                                          Text('Scan Finder', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+                                          Text('Scan their QR', style: GoogleFonts.inter(fontSize: 10, color: AppColors.textMuted)),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            ElevatedButton(
+                              onPressed: () {
+                                Navigator.pushNamed(context, '/generate-qr', arguments: claimId);
+                              },
+                              style: ElevatedButton.styleFrom(
+                                minimumSize: const Size(double.infinity, 50),
+                                backgroundColor: AppColors.primary,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              ),
+                              child: Text('Generate My Handover QR', style: GoogleFonts.inter(fontWeight: FontWeight.w700)),
+                            ),
+                            const SizedBox(height: 30),
+                          ],
+                        ),
+                      );
+                    },
+                  ),
                 ],
               ),
             );
@@ -637,13 +885,6 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
     if (question == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('No security question found for this item.')),
-      );
-      return;
-    }
-
-    if (matchId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No match found for this item.')),
       );
       return;
     }
@@ -761,19 +1002,24 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
 
                 if (!mounted) return;
 
-                if (result['success']) {
+                if (result['success'] || result['statusCode'] == 200) {
                   Navigator.pop(ctx);
                   _verificationController.clear();
                   ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: const Text('Ownership verified and claim submitted!'),
+                    const SnackBar(
+                      content: Text('Claim submitted! Waiting for finder approval.'),
                       backgroundColor: AppColors.success,
                     ),
                   );
+                  // Refresh matches to enable chat
+                  provider.fetchMatches(item.id);
                 } else {
+                  final msg = result['statusCode'] == 403 
+                      ? 'Incorrect answer. Please try again.' 
+                      : (result['message'] ?? 'Incorrect answer. Please try again.');
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text(result['message'] ?? 'Incorrect answer. Try again.'),
+                      content: Text(msg),
                       backgroundColor: AppColors.error,
                     ),
                   );
@@ -790,5 +1036,29 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
         ),
       ),
     );
+  }
+
+  void _handleClaim(BuildContext context, String matchId, String action, ItemProvider provider) async {
+    final result = await provider.verifyClaim(matchId: matchId, action: action);
+    
+    if (!mounted) return;
+
+    if (result['success']) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Claim ${action}d successfully!'),
+          backgroundColor: action == 'approve' ? AppColors.success : AppColors.error,
+        ),
+      );
+      // Refresh details to show handover section
+      provider.fetchMatches(widget.itemId);
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(result['message'] ?? 'Error processing claim.'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
   }
 }

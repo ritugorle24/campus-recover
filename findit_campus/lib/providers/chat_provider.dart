@@ -15,6 +15,12 @@ class ChatProvider with ChangeNotifier {
   bool _isOtherUserTyping = false;
   String? _currentMatchId;
 
+  ChatProvider() {
+    _socketService.onNewMessageNotification((data) {
+      fetchConversations();
+    });
+  }
+
   List<ConversationModel> get conversations => _conversations;
   List<ChatMessageModel> get messages => _messages;
   bool get isLoading => _isLoading;

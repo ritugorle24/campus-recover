@@ -25,6 +25,10 @@ class ApiConfig {
   static const String generateHandover = '$apiUrl/handover/generate';
   static const String verifyHandover = '$apiUrl/handover/verify';
   static String handoverStatus(String id) => '$apiUrl/handover/$id';
+  
+  // Claims
+  static const String claims = '$apiUrl/claims';
+  static String verifyClaim(String matchId) => '$apiUrl/items/match/$matchId/verify-claim';
 
   // Leaderboard endpoints
   static const String leaderboard = '$apiUrl/leaderboard';

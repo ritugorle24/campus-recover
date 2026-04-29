@@ -65,6 +65,17 @@ router.get('/my', auth, async (req, res) => {
   }
 });
 
+// GET /api/items/:id/security-question - Get ONLY the question
+router.get('/:id/security-question', auth, async (req, res) => {
+  try {
+    const item = await Item.findById(req.params.id).select('+securityQuestion');
+    if (!item) return res.status(404).json({ message: 'Item not found' });
+    res.json({ question: item.securityQuestion });
+  } catch (error) {
+    res.status(500).json({ message: 'Error fetching security question' });
+  }
+});
+
 // GET /api/items/search - Full-text search
 router.get('/search', auth, async (req, res) => {
   try {
@@ -132,16 +143,6 @@ router.get('/:id', auth, async (req, res) => {
   }
 });
 
-// GET /api/items/:id/security-question - Get ONLY the question
-router.get('/:id/security-question', auth, async (req, res) => {
-  try {
-    const item = await Item.findById(req.params.id).select('securityQuestion');
-    if (!item) return res.status(404).json({ message: 'Item not found' });
-    res.json({ question: item.securityQuestion });
-  } catch (error) {
-    res.status(500).json({ message: 'Error fetching security question' });
-  }
-});
 
 // POST /api/items/match/:matchId/claim - Submit a claim
 router.post('/match/:matchId/claim', auth, async (req, res) => {
@@ -178,11 +179,12 @@ router.post('/match/:matchId/claim', auth, async (req, res) => {
 
     // Notify Finder
     await Notification.create({
-      recipient: match.foundItem.postedBy,
-      title: 'New Claim Request',
-      message: 'Someone has described a unique feature to claim your found item.',
+      userId: match.foundItem.postedBy,
       type: 'CLAIM',
-      relatedId: match._id,
+      title: 'New Claim Request',
+      body: 'Someone has submitted a claim for your found item. Review it now.',
+      relatedId: match.foundItem._id,
+      read: false
     });
 
     res.json({ message: 'Claim submitted successfully', match });
@@ -209,23 +211,25 @@ router.put('/match/:matchId/verify-claim', auth, async (req, res) => {
     if (action === 'approve') {
       match.claimStatus = 'approved';
       match.status = 'confirmed';
-      // Notify Owner
+      // Notify owner
       await Notification.create({
-        recipient: match.lostItem.postedBy,
-        title: 'Claim Approved! ✅',
-        message: 'The finder has verified your description. You can now coordinate handover.',
+        userId: match.lostItem.postedBy,
         type: 'CLAIM',
+        title: 'Claim Accepted!',
+        body: 'Your claim has been approved. Arrange a meetup with the finder.',
         relatedId: match._id,
+        read: false
       });
     } else {
       match.claimStatus = 'rejected';
       // Notify Owner
       await Notification.create({
-        recipient: match.lostItem.postedBy,
-        title: 'Claim Rejected ❌',
-        message: 'The finder did not find your description accurate. Try again.',
+        userId: match.lostItem.postedBy,
         type: 'CLAIM',
-        relatedId: match._id,
+        title: 'Claim Rejected ❌',
+        body: 'The finder did not find your description accurate. Try again.',
+        relatedId: match.lostItem._id,
+        read: false
       });
     }
 
@@ -244,7 +248,23 @@ router.get('/:id/matches', auth, async (req, res) => {
       return res.status(404).json({ message: 'Item not found' });
     }
 
-    const matches = await findMatches(item);
+    // Generate new matches if any score >= 40
+    await findMatches(item);
+
+    // Fetch all existing matches for this item from DB
+    const matches = await Match.find({
+      $or: [{ lostItem: item._id }, { foundItem: item._id }]
+    })
+    .populate({
+      path: 'lostItem',
+      populate: { path: 'postedBy', select: 'name avatar' }
+    })
+    .populate({
+      path: 'foundItem',
+      populate: { path: 'postedBy', select: 'name avatar' }
+    })
+    .sort({ score: -1 });
+
     res.json({ matches });
   } catch (error) {
     console.error('Get matches error:', error);

@@ -19,7 +19,7 @@ function tokenize(text) {
     .toLowerCase()
     .replace(/[^a-z0-9\s]/g, '')
     .split(/\s+/)
-    .filter(word => word.length > 2); // Remove short words
+    .filter(word => word.trim().length > 0); // Keep short words like "id", "pc"
 }
 
 // Jaccard similarity between two arrays
@@ -89,7 +89,6 @@ async function findMatches(item) {
     const candidates = await Item.find({
       type: oppositeType,
       status: 'active',
-      postedBy: { $ne: item.postedBy }, // Don't match with own items
     }).populate('postedBy', 'name avatar');
 
     const matches = [];
@@ -103,45 +102,48 @@ async function findMatches(item) {
       // Only include matches with score >= 40
       if (score >= 40) {
         // Check if match already exists
-        const existingMatch = await Match.findOne({
+        let existingMatch = await Match.findOne({
           lostItem: lostItem._id,
           foundItem: foundItem._id,
         });
 
         if (!existingMatch) {
           // Create new match record
-          const match = new Match({
+          existingMatch = new Match({
             lostItem: lostItem._id,
             foundItem: foundItem._id,
             score,
             suggestedBy: 'system',
           });
-          await match.save();
+          await existingMatch.save();
 
-          // Notify both parties
-          await Notification.create([
-            {
-              recipient: lostItem.postedBy,
-              title: 'New Match Found!',
-              message: `A potential match for your lost "${lostItem.title}" has been found.`,
-              type: 'MATCH',
-              relatedId: match._id,
-            },
-            {
-              recipient: foundItem.postedBy,
-              title: 'New Potential Match!',
-              message: `Your found item "${foundItem.title}" matches a lost report.`,
-              type: 'MATCH',
-              relatedId: match._id,
-            }
-          ]);
+          // Notify Lost Owner
+          await Notification.create({
+            userId: lostItem.postedBy,
+            type: 'MATCH',
+            title: 'New Match Found!',
+            body: `Someone reported finding a ${foundItem.category} near ${foundItem.location?.building || 'Campus'}`,
+            relatedId: foundItem._id,
+            read: false
+          });
+
+          // Notify Finder
+          await Notification.create({
+            userId: foundItem.postedBy,
+            type: 'MATCH',
+            title: 'New Potential Match!',
+            body: `Your found item "${foundItem.title}" matches a lost report.`,
+            relatedId: existingMatch._id,
+            read: false
+          });
         }
 
         matches.push({
+          _id: existingMatch._id,
           item: candidate,
           score,
           breakdown,
-          matchId: existingMatch?._id,
+          matchId: existingMatch._id,
         });
       }
     }

@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const notificationSchema = new mongoose.Schema({
-  recipient: {
+  userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
     required: true,
@@ -10,7 +10,7 @@ const notificationSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  message: {
+  body: {
     type: String,
     required: true,
   },
@@ -23,7 +23,7 @@ const notificationSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     required: false, // Could be MatchId, ItemId, or HandoverId
   },
-  isRead: {
+  read: {
     type: Boolean,
     default: false,
   },

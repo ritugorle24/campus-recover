@@ -93,10 +93,12 @@ const itemSchema = new mongoose.Schema({
   securityQuestion: {
     type: String,
     default: null, // e.g. "What color is the phone case?"
+    select: false,
   },
   securityAnswer: {
     type: String,
     default: null, // e.g. "dark blue"
+    select: false,
   },
 }, {
   timestamps: true,

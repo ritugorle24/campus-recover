@@ -2,10 +2,13 @@ import 'dart:async';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:flutter/material.dart';
 import '../config/theme.dart';
+import '../services/socket_service.dart';
 import 'home/home_screen.dart';
 import 'items/search_screen.dart';
 import 'notifications/notifications_screen.dart';
 import 'profile/profile_screen.dart';
+import '../providers/notification_provider.dart';
+import 'package:provider/provider.dart';
 
 class MainScreen extends StatefulWidget {
   final int initialIndex;
@@ -36,6 +39,26 @@ class _MainScreenState extends State<MainScreen> {
       setState(() {
         _isOffline = results.isEmpty || results.contains(ConnectivityResult.none);
       });
+    });
+
+    SocketService().onNewMessageNotification((data) {
+      if (mounted) {
+        final senderName = data['senderName'] ?? 'Someone';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('New message from $senderName'),
+            backgroundColor: AppColors.primary,
+            duration: const Duration(seconds: 3),
+            action: SnackBarAction(
+              label: 'VIEW',
+              textColor: Colors.white,
+              onPressed: () {
+                _onItemTapped(2); // Go to Alerts/Messages tab
+              },
+            ),
+          ),
+        );
+      }
     });
   }
 
@@ -146,7 +169,20 @@ class _MainScreenState extends State<MainScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, color: color, size: 24),
+            if (index == 2) // ALERTS index
+              Consumer<NotificationProvider>(
+                builder: (context, provider, _) {
+                  final count = provider.unreadCount;
+                  return Badge(
+                    label: Text(count.toString()),
+                    isLabelVisible: count > 0,
+                    backgroundColor: AppColors.error,
+                    child: Icon(icon, color: color, size: 24),
+                  );
+                },
+              )
+            else
+              Icon(icon, color: color, size: 24),
             const SizedBox(height: 4),
             Text(
               label,

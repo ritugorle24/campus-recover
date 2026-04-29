@@ -87,9 +87,9 @@ class FindItCampusApp extends StatelessWidget {
             );
           }
           if (settings.name == '/generate-qr') {
-            final args = settings.arguments as Map<String, dynamic>?;
+            final matchId = settings.arguments as String?;
             return MaterialPageRoute(
-              builder: (context) => GenerateQrScreen(matchId: args?['matchId'] ?? ''),
+              builder: (context) => GenerateQrScreen(matchId: matchId ?? ''),
             );
           }
           if (settings.name == '/scan-qr') {

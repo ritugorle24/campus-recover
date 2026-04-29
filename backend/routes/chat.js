@@ -8,15 +8,14 @@ const router = express.Router();
 // GET /api/chat/conversations - List user's conversations
 router.get('/conversations', auth, async (req, res) => {
   try {
-    // Find all matches where user is involved (ANY status)
     const matches = await Match.find({})
       .populate({
         path: 'lostItem',
-        populate: { path: 'postedBy', select: 'fullName prn avatar' },
+        populate: { path: 'postedBy', select: 'name fullName prn avatar' },
       })
       .populate({
         path: 'foundItem',
-        populate: { path: 'postedBy', select: 'fullName prn avatar' },
+        populate: { path: 'postedBy', select: 'name fullName prn avatar' },
       })
       .sort({ updatedAt: -1 });
 
@@ -32,7 +31,7 @@ router.get('/conversations', auth, async (req, res) => {
       userMatches.map(async (match) => {
         const lastMessage = await Chat.findOne({ matchId: match._id })
           .sort({ createdAt: -1 })
-          .populate('sender', 'fullName avatar');
+          .populate('sender', 'name fullName avatar');
 
         const unreadCount = await Chat.countDocuments({
           matchId: match._id,
@@ -74,8 +73,8 @@ router.get('/messages/:matchId', auth, async (req, res) => {
     const skip = (parseInt(page) - 1) * parseInt(limit);
 
     const messages = await Chat.find({ matchId: req.params.matchId })
-      .populate('sender', 'fullName avatar')
-      .populate('receiver', 'fullName avatar')
+      .populate('sender', 'name fullName avatar')
+      .populate('receiver', 'name fullName avatar')
       .sort({ createdAt: 1 })
       .skip(skip)
       .limit(parseInt(limit));
@@ -137,8 +136,8 @@ router.post('/messages', auth, async (req, res) => {
     await newMessage.save();
     
     const populatedMessage = await Chat.findById(newMessage._id)
-      .populate('sender', 'fullName avatar')
-      .populate('receiver', 'fullName avatar');
+      .populate('sender', 'name fullName avatar')
+      .populate('receiver', 'name fullName avatar');
 
     // Emit via socket
     const io = req.app.get('io');

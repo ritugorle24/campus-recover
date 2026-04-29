@@ -97,7 +97,7 @@ class _MyItemsScreenState extends State<MyItemsScreen>
                       size: 60, color: AppColors.textMuted.withOpacity(0.5)),
                   const SizedBox(height: 16),
                   Text(
-                    'No items reported yet',
+                    'You have not reported any items yet',
                     style: Theme.of(context)
                         .textTheme
                         .headlineSmall

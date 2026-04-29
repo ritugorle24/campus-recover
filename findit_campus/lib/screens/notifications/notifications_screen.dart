@@ -170,14 +170,13 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
     const Color accentPurple = Color(0xFF6C4AB6);
 
     bool isSystem = notification.type == 'SYSTEM';
-    bool unread = !notification.isRead;
+    bool unread = !notification.read;
 
     return GestureDetector(
       onTap: () {
         if (unread) {
           Provider.of<NotificationProvider>(context, listen: false).markAsRead(notification.id);
         }
-        // Potential navigation logic based on notification.type and relatedId
       },
       child: Container(
         margin: const EdgeInsets.only(bottom: 16),
@@ -207,9 +206,9 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                   else if (notification.type == 'CLAIM')
                     _buildIconCircle(Icons.check_circle_rounded, Colors.green)
                   else if (notification.type == 'HANDOVER')
-                    _buildIconCircle(Icons.handshake_rounded, Colors.blue)
+                    _buildIconCircle(Icons.emoji_events_rounded, Colors.purple) // Purple trophy
                   else
-                    _buildIconCircle(Icons.campaign_rounded, accentPurple),
+                    _buildIconCircle(Icons.campaign_rounded, accentPurple), // Megaphone
                   
                   const SizedBox(width: 14),
                   // Title and Body
@@ -239,13 +238,46 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
                         ),
                         const SizedBox(height: 6),
                         Text(
-                          notification.message,
+                          notification.body,
                           style: const TextStyle(
                             color: mutedGray,
                             fontSize: 13,
                             height: 1.4,
                           ),
                         ),
+                        
+                        if (notification.type == 'MATCH') ...[
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              ElevatedButton(
+                                onPressed: () {
+                                  if (notification.relatedId != null) {
+                                    Navigator.pushNamed(context, '/item-detail', arguments: notification.relatedId);
+                                  }
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: accentPurple,
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                                  minimumSize: const Size(0, 32),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                                child: const Text('View Details', style: TextStyle(fontSize: 12)),
+                              ),
+                              const SizedBox(width: 10),
+                              OutlinedButton(
+                                onPressed: () {},
+                                style: OutlinedButton.styleFrom(
+                                  side: const BorderSide(color: mutedGray),
+                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                                  minimumSize: const Size(0, 32),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                ),
+                                child: const Text('Not Mine', style: TextStyle(color: mutedGray, fontSize: 12)),
+                              ),
+                            ],
+                          ),
+                        ],
                       ],
                     ),
                   ),

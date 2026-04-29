@@ -9,14 +9,12 @@ const Notification = require('../models/Notification');
 
 const router = express.Router();
 
-// POST /api/handover/generate - Generate QR code
+// POST /api/handover/generate - Generate QR code (Called by Owner)
 router.post('/generate', auth, async (req, res) => {
   try {
     const { matchId } = req.body;
-    const match = await Match.findById(matchId).populate('foundItem');
-    if (!match || match.foundItem.postedBy.toString() !== req.userId) {
-      return res.status(403).json({ message: 'Only finder can generate QR' });
-    }
+    const match = await Match.findById(matchId);
+    if (!match) return res.status(404).json({ message: 'Match not found' });
 
     const qrToken = uuidv4();
     const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
@@ -35,80 +33,66 @@ router.post('/generate', auth, async (req, res) => {
   }
 });
 
-// POST /api/handover/verify - Scan QR (Owner scans Finder's QR)
+// POST /api/handover/verify - Scan QR (Called by Finder)
 router.post('/verify', auth, async (req, res) => {
   try {
-    const { qrToken } = req.body;
-    const handover = await Handover.findOne({ qrToken }).populate('match');
-    if (!handover || handover.isExpired()) {
-      return res.status(404).json({ message: 'Invalid or expired QR' });
-    }
-
-    // Owner confirms receipt
-    handover.scannedBy = req.userId;
-    handover.ownerConfirmed = true;
-    await handover.save();
-
-    // Notify Finder that Owner scanned
-    await Notification.create({
-      recipient: handover.generatedBy,
-      title: 'QR Scanned!',
-      message: 'The owner has scanned your QR. Please confirm the handover to finish.',
-      type: 'HANDOVER',
-      relatedId: handover._id,
-    });
-
-    res.json({ message: 'QR verified. Waiting for finder confirmation.', handover });
-  } catch (error) {
-    res.status(500).json({ message: 'Error verifying QR' });
-  }
-});
-
-// POST /api/handover/confirm - Finder confirms handover
-router.post('/confirm', auth, async (req, res) => {
-  try {
-    const { handoverId } = req.body;
-    const handover = await Handover.findById(handoverId).populate({
+    const { token } = req.body;
+    const handover = await Handover.findOne({ qrToken: token }).populate({
       path: 'match',
       populate: ['lostItem', 'foundItem']
     });
 
-    if (!handover || handover.generatedBy.toString() !== req.userId) {
-      return res.status(403).json({ message: 'Unauthorized' });
+    if (!handover || handover.isExpired()) {
+      return res.status(404).json({ message: 'Invalid or expired QR token' });
     }
 
-    if (!handover.ownerConfirmed) {
-      return res.status(400).json({ message: 'Owner must scan QR first' });
+    if (handover.status === 'completed') {
+      return res.status(400).json({ message: 'Handover already completed' });
     }
 
-    handover.finderConfirmed = true;
     handover.status = 'completed';
+    handover.scannedBy = req.userId;
     handover.completedAt = new Date();
     await handover.save();
 
-    // RESOLVE ITEMS & AWARD POINTS
-    await Item.findByIdAndUpdate(handover.match.lostItem._id, { status: 'resolved' });
-    await Item.findByIdAndUpdate(handover.match.foundItem._id, { status: 'resolved' });
-    
-    // Points
-    const finder = await User.findById(handover.match.foundItem.postedBy);
-    finder.points += 25;
-    finder.itemsReturned += 1;
-    finder.checkBadges();
-    await finder.save();
+    const match = handover.match;
+    const ownerId = match.lostItem.postedBy;
+    const finderId = match.foundItem.postedBy;
 
-    // Notify Owner
+    // Resolve items
+    await Item.findByIdAndUpdate(match.lostItem._id, { status: 'resolved' });
+    await Item.findByIdAndUpdate(match.foundItem._id, { status: 'resolved' });
+
+    // Award 25 points to finder
+    const finder = await User.findById(finderId);
+    if (finder) {
+      finder.points += 25;
+      finder.itemsReturned += 1;
+      finder.checkBadges();
+      await finder.save();
+    }
+
+    // Notify both users
     await Notification.create({
-      recipient: handover.match.lostItem.postedBy,
-      title: 'Handover Complete! 🎉',
-      message: 'Enjoy your recovered item. Thank you for using FindIt Campus!',
+      userId: ownerId,
       type: 'HANDOVER',
-      relatedId: handover._id,
+      title: 'Item Successfully Returned!',
+      body: 'Your item has been marked as resolved. Thank you for using FindIt Campus.',
+      read: false
     });
 
-    res.json({ message: 'Handover confirmed. Points awarded!', handover });
+    await Notification.create({
+      userId: finderId,
+      type: 'HANDOVER',
+      title: 'Points Awarded!',
+      body: 'You successfully returned an item and earned 25 points! Keep up the good work.',
+      read: false
+    });
+
+    res.json({ message: 'Handover verified and completed successfully', handover });
   } catch (error) {
-    res.status(500).json({ message: 'Error confirming handover' });
+    console.error('Verify handover error:', error);
+    res.status(500).json({ message: 'Error verifying handover' });
   }
 });
 

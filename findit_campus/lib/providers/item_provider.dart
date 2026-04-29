@@ -242,19 +242,37 @@ class ItemProvider with ChangeNotifier {
 
   Future<Map<String, dynamic>> submitClaim({
     required String itemId,
-    required String matchId,
+    String? matchId,
     required String answer,
     String? description,
   }) async {
     _isLoading = true;
     notifyListeners();
 
-    final result = await _api.post('/api/claims', body: {
+    final result = await _api.post(ApiConfig.claims, body: {
       'itemId': itemId,
       'matchId': matchId,
-      'providedAnswer': answer,
-      'description': description,
+      'securityAnswer': answer,
+      'uniqueDescription': description,
     });
+
+    _isLoading = false;
+    notifyListeners();
+
+    return result;
+  }
+
+  Future<Map<String, dynamic>> verifyClaim({
+    required String matchId,
+    required String action,
+  }) async {
+    _isLoading = true;
+    notifyListeners();
+
+    final result = await _api.put(
+      ApiConfig.verifyClaim(matchId),
+      body: {'action': action},
+    );
 
     _isLoading = false;
     notifyListeners();

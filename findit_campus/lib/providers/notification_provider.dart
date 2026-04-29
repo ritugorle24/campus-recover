@@ -4,19 +4,19 @@ import '../services/api_service.dart';
 class NotificationModel {
   final String id;
   final String title;
-  final String message;
+  final String body;
   final String type;
   final String? relatedId;
-  final bool isRead;
+  final bool read;
   final DateTime createdAt;
 
   NotificationModel({
     required this.id,
     required this.title,
-    required this.message,
+    required this.body,
     required this.type,
     this.relatedId,
-    required this.isRead,
+    required this.read,
     required this.createdAt,
   });
 
@@ -24,10 +24,10 @@ class NotificationModel {
     return NotificationModel(
       id: json['_id'] ?? '',
       title: json['title'] ?? '',
-      message: json['message'] ?? '',
+      body: json['body'] ?? '',
       type: json['type'] ?? 'SYSTEM',
       relatedId: json['relatedId'],
-      isRead: json['isRead'] ?? false,
+      read: json['read'] ?? false,
       createdAt: json['createdAt'] != null 
           ? DateTime.parse(json['createdAt']) 
           : DateTime.now(),
@@ -44,7 +44,7 @@ class NotificationProvider with ChangeNotifier {
   List<NotificationModel> get notifications => _notifications;
   bool get isLoading => _isLoading;
   String? get error => _error;
-  int get unreadCount => _notifications.where((n) => !n.isRead).length;
+  int get unreadCount => _notifications.where((n) => !n.read).length;
 
   Future<void> fetchNotifications() async {
     _isLoading = true;
@@ -76,10 +76,10 @@ class NotificationProvider with ChangeNotifier {
           _notifications[index] = NotificationModel(
             id: _notifications[index].id,
             title: _notifications[index].title,
-            message: _notifications[index].message,
+            body: _notifications[index].body,
             type: _notifications[index].type,
             relatedId: _notifications[index].relatedId,
-            isRead: true,
+            read: true,
             createdAt: _notifications[index].createdAt,
           );
           notifyListeners();
@@ -97,10 +97,10 @@ class NotificationProvider with ChangeNotifier {
         _notifications = _notifications.map((n) => NotificationModel(
           id: n.id,
           title: n.title,
-          message: n.message,
+          body: n.body,
           type: n.type,
           relatedId: n.relatedId,
-          isRead: true,
+          read: true,
           createdAt: n.createdAt,
         )).toList();
         notifyListeners();

@@ -8,7 +8,7 @@ require('dotenv').config();
 
 const connectDB = require('./config/db');
 const { setupChatSocket } = require('./socket/chatSocket');
-console.log("MONGO_URI:", process.env.MONGO_URI);
+console.log("MONGODB_URI:", process.env.MONGODB_URI);
 // Import routes
 const authRoutes = require('./routes/auth');
 const itemRoutes = require('./routes/items');
