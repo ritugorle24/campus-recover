@@ -73,7 +73,8 @@ router.post('/', auth, async (req, res) => {
 
     if (!match) return res.status(404).json({ message: 'Match could not be established' });
 
-    // 1. Daily Limit Check (2 per 24 hours) - Consistent with items.js
+    // 1. Daily Limit Check Disabled for review
+    /*
     const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const matchesWithClaims = await Match.find({ 
       claimSubmittedAt: { $gte: twentyFourHoursAgo },
@@ -87,6 +88,7 @@ router.post('/', auth, async (req, res) => {
     if (userClaimsIn24h.length >= 2) {
       return res.status(429).json({ message: 'You have reached your daily claim limit' });
     }
+    */
 
     match.claimDescription = description || 'Verified via security question';
     match.claimStatus = 'submitted';

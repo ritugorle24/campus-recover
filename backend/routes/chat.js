@@ -120,40 +120,36 @@ router.post('/initialize', auth, async (req, res) => {
       return res.status(400).json({ message: 'Cannot chat with yourself' });
     }
 
-    // See if any match already exists between this user and this item
-    // Since we don't have a specific lost item, we can just look for ANY match where this user is involved
-    // But Match schema requires both lostItem and foundItem.
-    // If the user hasn't created a lost item, we can't create a real Match.
-    // However, the system requires a Match.
-    // Let's create a "dummy" lost item for this user just to satisfy the Match schema if they don't have one,
-    // OR we can just pick ANY of their lost items.
-    let dummyLostItem = await Item.findOne({ postedBy: req.userId, type: 'lost' });
+    const oppositeType = item.type === 'lost' ? 'found' : 'lost';
     
-    if (!dummyLostItem) {
-      // Create a hidden dummy item just to enable chat
-      dummyLostItem = new Item({
+    let dummyItem = await Item.findOne({ postedBy: req.userId, type: oppositeType });
+    
+    if (!dummyItem) {
+      dummyItem = new Item({
         title: 'Chat Initializer',
         description: 'System generated item for chat',
         category: item.category,
-        type: 'lost',
-        status: 'resolved', // keep it hidden
+        type: oppositeType,
+        status: 'resolved',
         postedBy: req.userId,
         location: { building: 'N/A' },
         date: new Date()
       });
-      await dummyLostItem.save();
+      await dummyItem.save();
     }
 
-    // Create or find match
+    const lostItemId = item.type === 'lost' ? item._id : dummyItem._id;
+    const foundItemId = item.type === 'found' ? item._id : dummyItem._id;
+
     let match = await Match.findOne({
-      lostItem: dummyLostItem._id,
-      foundItem: item._id
+      lostItem: lostItemId,
+      foundItem: foundItemId
     });
 
     if (!match) {
       match = new Match({
-        lostItem: dummyLostItem._id,
-        foundItem: item._id,
+        lostItem: lostItemId,
+        foundItem: foundItemId,
         score: 0,
         suggestedBy: 'user',
         status: 'pending',
