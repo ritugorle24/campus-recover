@@ -20,6 +20,7 @@ class ApiConfig {
   // Chat endpoints
   static const String conversations = '$apiUrl/chat/conversations';
   static String messages(String matchId) => '$apiUrl/chat/messages/$matchId';
+  static const String initializeChat = '$apiUrl/chat/initialize';
 
   // Handover endpoints
   static const String generateHandover = '$apiUrl/handover/generate';

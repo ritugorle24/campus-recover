@@ -105,6 +105,69 @@ router.get('/messages/:matchId', auth, async (req, res) => {
   }
 });
 
+// POST /api/chat/initialize - Initialize a chat with an item poster without a claim
+router.post('/initialize', auth, async (req, res) => {
+  try {
+    const { itemId } = req.body;
+    if (!itemId) return res.status(400).json({ message: 'Item ID is required' });
+
+    const Item = require('../models/Item');
+    const item = await Item.findById(itemId);
+    if (!item) return res.status(404).json({ message: 'Item not found' });
+
+    // Ensure we don't chat with ourselves
+    if (item.postedBy.toString() === req.userId) {
+      return res.status(400).json({ message: 'Cannot chat with yourself' });
+    }
+
+    // See if any match already exists between this user and this item
+    // Since we don't have a specific lost item, we can just look for ANY match where this user is involved
+    // But Match schema requires both lostItem and foundItem.
+    // If the user hasn't created a lost item, we can't create a real Match.
+    // However, the system requires a Match.
+    // Let's create a "dummy" lost item for this user just to satisfy the Match schema if they don't have one,
+    // OR we can just pick ANY of their lost items.
+    let dummyLostItem = await Item.findOne({ postedBy: req.userId, type: 'lost' });
+    
+    if (!dummyLostItem) {
+      // Create a hidden dummy item just to enable chat
+      dummyLostItem = new Item({
+        title: 'Chat Initializer',
+        description: 'System generated item for chat',
+        category: item.category,
+        type: 'lost',
+        status: 'resolved', // keep it hidden
+        postedBy: req.userId,
+        location: { building: 'N/A' },
+        date: new Date()
+      });
+      await dummyLostItem.save();
+    }
+
+    // Create or find match
+    let match = await Match.findOne({
+      lostItem: dummyLostItem._id,
+      foundItem: item._id
+    });
+
+    if (!match) {
+      match = new Match({
+        lostItem: dummyLostItem._id,
+        foundItem: item._id,
+        score: 0,
+        suggestedBy: 'user',
+        status: 'pending',
+      });
+      await match.save();
+    }
+
+    res.json({ matchId: match._id });
+  } catch (error) {
+    console.error('Initialize chat error:', error);
+    res.status(500).json({ message: 'Error initializing chat' });
+  }
+});
+
 // POST /api/chat/messages - Send a new message
 router.post('/messages', auth, async (req, res) => {
   try {

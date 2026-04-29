@@ -6,6 +6,7 @@ import '../../config/theme.dart';
 import '../../providers/item_provider.dart';
 import '../../providers/auth_provider.dart';
 import '../../models/item_model.dart';
+import '../../providers/chat_provider.dart';
 import '../chat/chat_screen.dart';
 
 class ItemDetailScreen extends StatefulWidget {
@@ -413,21 +414,23 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
 
                             // Chat with Finder button
                             OutlinedButton(
-                              onPressed: () {
-                                final matches = itemProvider.matches;
-                                if (matches.isEmpty) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Working on finding matches for this item...')),
-                                  );
-                                  return;
-                                }
-
-                                final match = matches.first;
-                                final matchId = match['_id'] ?? match['matchId'];
+                              onPressed: () async {
+                                final chatProvider = Provider.of<ChatProvider>(context, listen: false);
                                 
-                                if (matchId == null || matchId.toString().isEmpty) {
+                                // Show loading indicator in snackbar
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Initializing chat...')),
+                                );
+                                
+                                final matchId = await chatProvider.initializeChat(item.id);
+                                
+                                if (!mounted) return;
+                                
+                                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+                                
+                                if (matchId == null || matchId.isEmpty) {
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Could not initialize chat. Invalid match data.')),
+                                    const SnackBar(content: Text('Could not initialize chat.')),
                                   );
                                   return;
                                 }
@@ -436,7 +439,7 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                                   context,
                                   MaterialPageRoute(
                                     builder: (context) => ChatScreen(
-                                      matchId: matchId.toString(),
+                                      matchId: matchId,
                                       otherUserName: item.posterName,
                                       otherUserId: item.posterId,
                                     ),

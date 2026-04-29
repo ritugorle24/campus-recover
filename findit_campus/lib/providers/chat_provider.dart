@@ -135,6 +135,17 @@ class ChatProvider with ChangeNotifier {
     _socketService.markAsRead(matchId);
   }
 
+  Future<String?> initializeChat(String itemId) async {
+    final result = await _api.post(ApiConfig.initializeChat, body: {
+      'itemId': itemId,
+    });
+    
+    if (result['success']) {
+      return result['data']['matchId'];
+    }
+    return null;
+  }
+
   int get totalUnread {
     return _conversations.fold(0, (sum, c) => sum + c.unreadCount);
   }

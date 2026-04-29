@@ -9,6 +9,7 @@ const router = express.Router();
 // POST /api/claims - Submit a claim with security answer
 router.post('/', auth, async (req, res) => {
   try {
+    console.log('Received claim request body:', req.body);
     const { itemId, matchId, securityAnswer, uniqueDescription } = req.body;
 
     if (!securityAnswer) {
