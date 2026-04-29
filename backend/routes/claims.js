@@ -10,21 +10,26 @@ const router = express.Router();
 router.post('/', auth, async (req, res) => {
   try {
     console.log('Received claim request body:', req.body);
-    const { itemId, matchId, securityAnswer, uniqueDescription } = req.body;
-
-    if (!securityAnswer) {
-      return res.status(400).json({ message: 'Security answer is required' });
-    }
+    const { itemId, matchId, answer, description } = req.body;
 
     const item = await Item.findById(itemId).select('+securityAnswer +securityQuestion');
     if (!item) return res.status(404).json({ message: 'Item not found' });
 
-    // Verify answer (case insensitive and trimmed)
-    const isCorrect = item.securityAnswer && 
-                     item.securityAnswer.toLowerCase().trim() === securityAnswer.toLowerCase().trim();
-    
-    if (!isCorrect) {
-      return res.status(403).json({ message: 'Incorrect answer. Only the real owner would know this.' });
+    // Verify answer only if the item has one set
+    if (item.securityAnswer && item.securityAnswer.trim().length > 0) {
+      if (!answer) {
+        return res.status(400).json({ message: 'Security answer is required' });
+      }
+      
+      const isCorrect = item.securityAnswer.toLowerCase().trim() === answer.toLowerCase().trim();
+      if (!isCorrect) {
+        return res.status(403).json({ message: 'Incorrect answer. Only the real owner would know this.' });
+      }
+    } else {
+      // If no security answer, they MUST provide a unique description
+      if (!description || description.trim() === '') {
+         return res.status(400).json({ message: 'Please provide a unique description to prove ownership.' });
+      }
     }
 
     // Proceed to create/update claim in Match
@@ -83,22 +88,28 @@ router.post('/', auth, async (req, res) => {
       return res.status(429).json({ message: 'You have reached your daily claim limit' });
     }
 
-    match.claimDescription = uniqueDescription || 'Verified via security question';
+    match.claimDescription = description || 'Verified via security question';
     match.claimStatus = 'submitted';
     match.claimSubmittedAt = new Date();
     await match.save();
 
     // Notify Finder
-    await Notification.create({
+    const notification = await Notification.create({
       userId: match.foundItem.postedBy,
       type: 'CLAIM',
       title: 'Someone claimed your item!',
       body: `A claim has been submitted for your ${item.title}.`,
       relatedId: match._id,
+      actions: ['accept', 'reject'],
       read: false
     });
 
-    res.json({ message: 'Claim submitted successfully', match });
+    const io = req.app.get('io');
+    if (io) {
+      io.to(`user_${match.foundItem.postedBy.toString()}`).emit('new_notification', notification);
+    }
+
+    res.status(200).json({ success: true, message: 'Claim submitted successfully', match });
   } catch (error) {
     console.error('Create claim error:', error);
     res.status(500).json({ message: 'Error submitting claim' });

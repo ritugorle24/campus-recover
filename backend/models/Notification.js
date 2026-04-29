@@ -23,6 +23,10 @@ const notificationSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.ObjectId,
     required: false, // Could be MatchId, ItemId, or HandoverId
   },
+  actions: {
+    type: [String],
+    default: [],
+  },
   read: {
     type: Boolean,
     default: false,
