@@ -1,0 +1,8 @@
+node_modules/
+.idea/
+.vscode/
+build/
+.dart_tool/
+.env
+*.iml
+.DS_Store
